@@ -8,7 +8,7 @@ Replace these with more appropriate tests for your application.
 from django.test import TestCase
 from models import Word
 
-import views 
+import views
 
 class SimpleTest(TestCase):
     def test_adding_words(self):
@@ -85,8 +85,70 @@ class SimpleTest(TestCase):
                          ['peter', 'bengtsson'])
         
         
+    def test_spellcorrector_basic(self):
+        """test the Spellcorrector class without loading or saving"""
         
-
+        sc = views.Spellcorrector()
+        
+        sc.train('peter')
+        self.assertEqual(sc.correct('peter'), 'peter')
+        self.assertEqual(sc.correct('petter'), 'peter')
+        
+        sc.train('petter')
+        # 'petter' is newer but 'peter' was trained on deliberately
+        self.assertEqual(sc.correct('peter'), 'peter')
+        # should definitely not be corrected
+        self.assertEqual(sc.correct('petter'), 'petter')
+        
+        # 2 edit distances from 'petter' but 1 from 'peter'
+        self.assertEqual(sc.suggestions('peterr'), ['peter'])
+        
+        # 1 edit distaince from 'petter'
+        self.assertEqual(sc.suggestions('petterr'), ['petter'])
+        
+        # for the curious type
+        self.assertEqual(sc.suggestions('eter', detailed=True), 
+          [{'count': 1, 'percentage': 100.0, 'word': u'peter'}])
+        
+        self.assertEqual(sc.count_trained_words(), 2)
+        
+    def test_spellcorrector_swedish(self):
+        """test the Spellcorrector class without loading or saving and
+        don't use the English alphabet"""
+        
+        sc = views.Spellcorrector(language='sv')
+        # by the language it's able to guess the alphabet
+        self.assertEqual(len(sc.alphabet), 26+3)
+        self.assertTrue(u'\xe5' in sc.alphabet)
+        self.assertTrue(u'\xe4' in sc.alphabet)
+        self.assertTrue(u'\xf6' in sc.alphabet)
+        
+        sc.train(u'r\xe5d')
+        self.assertEqual(sc.correct('rad'), u'r\xe5d')
+        sc.train(u'r\xf6d')
+        self.assertEqual(sc.correct('rad'), u'rad') # work harder!
+        
+        
+    def test_spellcorrector_loading_basic(self):
+        """test the Spellcorrector after loading from the database"""
+        
+        sc = views.Spellcorrector()
+        # when not trained on anything it won't get this right
+        self.assertEqual(sc.correct('petxr'), 'petxr')
+        
+        Word.objects.create(word='peter', count=1, 
+                            language=sc.language)
+        
+        sc.load()
+        self.assertEqual(sc.correct('petxr'), 'peter')
+        
+        # spellcorrecting the word 'petxr' would be ambiguous with
+        # the loaded 'peter' but if we have since loading trained
+        # on a new "more important" word 'petxa' then that wins
+        sc.train(u'petxa')
+        self.assertEqual(sc.correct('petxr'), 'petxa')
+        
+    
         
         
         

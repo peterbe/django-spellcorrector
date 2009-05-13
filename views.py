@@ -34,13 +34,23 @@ def decr_word(word, language='en'):
         pass
     
     
+def _guess_alphabet(language):
+    default = u'abcdefghijklmnopqrstuvwxyz'
+    language = language.lower().strip()
+    if language == 'sv':
+        return default + u'\xe5' + u'\xe4' + u'\xf6'
+    elif language == 'de':
+        return default + u'\xdf\xe4\xf6\xfc'
+    return default
     
 class Spellcorrector(object):
-################################################################################    
-    def __init__(self, language='en', alphabet=u'abcdefghijklmnopqrstuvwxyz'):
+    def __init__(self, language='en', alphabet=None):
         self.language = language
-        self.alphabet = alphabet; assert isinstance(alphabet, unicode)
-        
+        if alphabet is None:
+            self.alphabet = _guess_alphabet(language)
+        else:
+            self.alphabet = unicode(alphabet)
+
         # this is the dict that contains the master record of all word variants
         self.nwords = {}
         
@@ -54,11 +64,10 @@ class Spellcorrector(object):
         
     def load(self):
         for record in Word.objects.filter(language=self.language):
+            self.nwords[record.word] = record.count
             
-            #self.nwords[record.word] = record.count
-            
-        self._loaded = []
-        
+        self._loaded = True
+
     def _edits1(self, word):
         n = len(word)
         return set(# deletion
@@ -89,14 +98,12 @@ class Spellcorrector(object):
                    self._known_edits2(word) or [word]
         
             
-   def _train(self, words):
+    def _train(self, words):
         #words = [safe_unicode(x).lower() for x in words]
 
-        _trained_words = self._trained_words
-        
         new_words = words
         for word in new_words:
-            assert isinstance(word, unicode), "word %r not a unicode object" % word
+            word = unicode(word)
             
             # if we've already trained a variant of this word, e.g 'mike', 
             # that would have added the misspellt alternatives too (set to -1)
@@ -137,22 +144,20 @@ class Spellcorrector(object):
             #  ['make','george']
             # Thanks to the max() function above, that make word end up with 
             # a count of 0.
-            # No, suppose you train on these words:
+            # Now, suppose you train on these words:
             #   ['mike','sivia','make']
             # Then, in the first element,  you're expected to add 
             # misspelled alternatives of the word 'mike' (e.g 'mbke')
             # but thanks to this limiting list compression here below we can 
             # make sure we're not going to bother with the alternative 'make' 
             # because that's in the list of training words.
-            if self._load_language_files:
+            if self._loaded:
                 new_word_alternatives = [x for x in self._edits1(word) if x not in new_words]
                 for variant in new_word_alternatives:
                     if variant not in self.nwords:
                         self.nwords[variant] = -1
 
-            _trained_words.append(word)
-            
-        self._trained_words = _trained_words
+            self._trained_words.append(word)
         
 
     def train(self, words):
@@ -160,4 +165,70 @@ class Spellcorrector(object):
             words = [words]
 
         self._train(words)
+        
+    def correct(self, word):
+        candidates = self._candidates(word)
+        
+        #if word in getattr(self, '_trained_words', []):
+        if word in self._trained_words:
+            # this test is important because if you've trained a word, specifcally,
+            # we can be pretty certain that it's correct and doesn't need to
+            # be corrected. Without this if statement the max() function below
+            # might "break" because the two top candidates have the same score
+            # Suppose...:
+            #   s = Spellcorrector('en')
+            #   s.train('peter')
+            #   s.train('petter')
+            #   (at this point self.nwords is {'peter':1, 'petter':1}
+            #   s.correct('peter') --> 'petter'
+            # With this if statement, the word 'peter' which shares the max
+            # score position won't be considered incorrect.
+            return word
+            
+        try:
+            return max(candidates, key=lambda w: self.nwords.get(w,1))
+        except TypeError:
+            # old Python 2.4
+            suggestions = list([(self.nwords.get(x,1), x) for x in candidates])
+            suggestions.sort()
+            suggestions.reverse()
+            return suggestions[0][1]
+
+    def suggestions(self, word, detailed=False):
+        candidates = self._candidates(word)
+        suggestions = list([(self.nwords.get(x,0), x) for x in candidates])
+        suggestions = [(a,b) for (a,b) in suggestions if a > 0]
+        suggestions.sort()
+        suggestions.reverse()
+        if detailed:
+            total = sum([a for (a,b) in suggestions])
+            return [{'word':b,  'count':a, 'percentage': 100.0*a/total} for (a,b) in suggestions]
+        else:
+            return [b for (a,b) in suggestions]
+        
+    def count_trained_words(self):
+        return len(self.nwords)
+        
+    def __str__(self):
+        msg = 'Spellcorrector - %s different words counted %s times'
+        return msg % (self.count_trained_words(), sum(self.nwords.values()))
+        
     
+    
+def test_spellcorrector():
+    sc = Spellcorrector('en')
+    sc.train('peter')
+    assert sc.correct('peter') == 'peter'
+    assert sc.correct('petter') == 'peter'
+    sc.train('petter')
+    assert sc.correct('peter') == 'peter'
+    assert sc.correct('petter') == 'petter'
+    
+    assert sc.suggestions('peterr') == ['peter']
+    assert sc.suggestions('petterr') == ['petter']
+    
+    assert sc.suggestions('eter', detailed=True) == \
+      [{'count': 1, 'percentage': 100.0, 'word': u'peter'}]
+    
+    
+#test_spellcorrector()
