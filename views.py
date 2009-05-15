@@ -65,8 +65,11 @@ class Spellcorrector(object):
     def load(self):
         for record in Word.objects.filter(language=self.language):
             self.nwords[record.word] = record.count
-            
         self._loaded = True
+        
+    def save(self):
+        for word in self._trained_words:
+            Word.set_word(word, self.nwords[word], language=self.language)
 
     def _edits1(self, word):
         n = len(word)
@@ -169,7 +172,6 @@ class Spellcorrector(object):
     def correct(self, word):
         candidates = self._candidates(word)
         
-        #if word in getattr(self, '_trained_words', []):
         if word in self._trained_words:
             # this test is important because if you've trained a word, specifcally,
             # we can be pretty certain that it's correct and doesn't need to
@@ -185,15 +187,22 @@ class Spellcorrector(object):
             # score position won't be considered incorrect.
             return word
             
-        try:
-            return max(candidates, key=lambda w: self.nwords.get(w,1))
-        except TypeError:
-            # old Python 2.4
-            suggestions = list([(self.nwords.get(x,1), x) for x in candidates])
-            suggestions.sort()
-            suggestions.reverse()
-            return suggestions[0][1]
-
+        if len(candidates) > 1:
+            # take the one with the best score if it has 
+            # a better score than all others
+            scores = [(self.nwords.get(w, 1),w) for w in candidates]
+            scores.sort()
+            scores.reverse()
+            winner = scores[0]
+            second_place = scores[1]
+            if winner[0] > second_place[0]:
+                return winner[1]
+            return word
+        else:
+            # candidates is a set so can't take the 0th element
+            # so first turn it into a list
+            return list(candidates)[0]
+        
     def suggestions(self, word, detailed=False):
         candidates = self._candidates(word)
         suggestions = list([(self.nwords.get(x,0), x) for x in candidates])

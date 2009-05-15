@@ -126,7 +126,8 @@ class SimpleTest(TestCase):
         sc.train(u'r\xe5d')
         self.assertEqual(sc.correct('rad'), u'r\xe5d')
         sc.train(u'r\xf6d')
-        self.assertEqual(sc.correct('rad'), u'rad') # work harder!
+        # ambiguous! There is no reason u'r\xe5d' is any better than u'r\xf6d'
+        self.assertEqual(sc.correct('rad'), u'rad') # fall back
         
         
     def test_spellcorrector_loading_basic(self):
@@ -148,7 +149,39 @@ class SimpleTest(TestCase):
         sc.train(u'petxa')
         self.assertEqual(sc.correct('petxr'), 'petxa')
         
-    
+
+    def test_spellcorrector_saving_basic(self):
+        """test the Spellcorrector after saving to the database and loading
+        which should be able to pick up from previous sessions"""
+        
+        
+        sc = views.Spellcorrector()
+        
+        # when not trained on anything it won't get this right
+        self.assertEqual(sc.correct('petxr'), 'petxr')
+        # it won't help if we load
+        sc.load()
+        self.assertEqual(sc.correct('petxr'), 'petxr')
+        
+        
+        # but if we train on it should work
+        sc.train('peter')
+        self.assertEqual(sc.correct('petxr'), 'peter')
+        
+        # now save it
+        sc.save()
+        
+        # create new instance
+        sc2 = views.Spellcorrector()
+        # totally new blank
+        self.assertEqual(sc2.correct('petxr'), 'petxr')
+        # but should work if we load
+        sc2.load()
+        self.assertEqual(sc2.correct('petxr'), 'peter')
+        
+        
+        
+
         
         
         

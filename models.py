@@ -19,6 +19,16 @@ class Word(models.Model):
             return Word.objects.get(word=word.lower(), language=language).count
         except Word.DoesNotExist:
             return 0
+        
+    @staticmethod
+    def set_word(word, count, language='en'):
+        try:
+            word = Word.objects.get(word=word.lower(), language=language)
+        except Word.DoesNotExist:
+            word = Word.objects.create(word=word.lower(), language=language)
+        if word.count != count:
+            word.count = count
+            word.save()
     
         
     
