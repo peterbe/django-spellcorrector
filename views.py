@@ -5,6 +5,19 @@ def tokenize_text(text):
     # XXX improve this 
     return re.findall(u'[a-z\xe5\xe4\xf6]+', text.lower())
 
+
+def remove_stopwords(word_sequence, language='en'):
+    stopwords = \
+    (
+     "a", "and", "are", "as", "at", "be", "but", "by",
+     "for", "if", "in", "into", "is", "it",
+     "no", "not", "of", "on", "or", "such",
+     "that", "the", "their", "then", "there", "these",
+     "they", "this", "to", "was", "will", "with"
+    )
+    return [x for x in word_sequence if x.lower() not in stopwords]
+    
+
 def train_text(text, language='en'):
     for word in tokenize_text(text):
         train_word(word, language='en')
@@ -100,10 +113,7 @@ class Spellcorrector(object):
             return self.known([word]) | self.known(self._edits1(word)) or \
                    self._known_edits2(word) or [word]
         
-            
     def _train(self, words):
-        #words = [safe_unicode(x).lower() for x in words]
-
         new_words = words
         for word in new_words:
             word = unicode(word)
@@ -166,9 +176,32 @@ class Spellcorrector(object):
     def train(self, words):
         if not isinstance(words, (tuple, list)):
             words = [words]
-
+            
         self._train(words)
         
+    def untrain(self, words):
+        if not isinstance(words, (tuple, list)):
+            words = [words]
+            
+        self._untrain(words)
+        
+    def _untrain(self, words):
+        for word in words:
+            word = unicode(word)
+            
+            if word in self.nwords:
+                count = self.nwords.pop(word)
+                if count > 1:
+                    # put it back in
+                    self.nwords[word] = count - 1
+                else:
+                    # it's gone!
+                    try:
+                        self._trained_words.remove(word)
+                    except ValueError:
+                        pass
+                    
+
     def correct(self, word):
         candidates = self._candidates(word)
         

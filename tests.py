@@ -180,6 +180,41 @@ class SimpleTest(TestCase):
         self.assertEqual(sc2.correct('petxr'), 'peter')
         
         
+    def test_spellcorrector_untrain(self):
+        """you reverse trained words by untraining"""
+        
+        sc = views.Spellcorrector()
+        
+        # first it can do nothing
+        self.assertEqual(sc.correct('petxr'), 'petxr')
+        
+        sc.train(u'peter')
+        self.assertEqual(sc.correct('petxr'), 'peter')
+        
+        # change your mind
+        sc.untrain(u'peter')
+        self.assertEqual(sc.correct('petxr'), 'petxr')
+        
+        # but if you train a word more than once, 
+        # untraining only means that you're going to remove it a little
+        
+        # first it can't know
+        self.assertEqual(sc.correct('bangt'), 'bangt')
+        sc.train(u'bengt')
+        sc.train(u'bengt')
+        sc.train(u'bang')
+        self.assertEqual(sc.correct('bangt'), 'bengt')
+        # but if we untrain, we don't know if it should 'bang' or 'bengt'
+        sc.untrain(u'bengt')
+        self.assertEqual(sc.correct('bangt'), 'bangt')
+        sc.untrain(u'bengt')
+        self.assertEqual(sc.correct('bangt'), 'bang')
+        
+        
+
+        
+
+        
         
 
         
