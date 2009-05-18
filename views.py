@@ -18,13 +18,6 @@ def remove_stopwords(word_sequence, language='en'):
     return [x for x in word_sequence if x.lower() not in stopwords]
     
 
-def train_text(text, language='en'):
-    for word in tokenize_text(text):
-        train_word(word, language='en')
-        
-def train_word(word, language='en'):
-    pass
-    
 
 def incr_word(word, language='en'):
     try:
@@ -74,6 +67,10 @@ class Spellcorrector(object):
         # by default we assume that we haven't loaded a list of stored words
         self._loaded = False
         
+    def reset(self):
+        self._loaded = False
+        self.nwords = {}
+        self._trained_words = []
         
     def load(self):
         for record in Word.objects.filter(language=self.language):
@@ -116,7 +113,7 @@ class Spellcorrector(object):
     def _train(self, words):
         new_words = words
         for word in new_words:
-            word = unicode(word)
+            word = unicode(word).lower()
             
             # if we've already trained a variant of this word, e.g 'mike', 
             # that would have added the misspellt alternatives too (set to -1)
@@ -174,21 +171,21 @@ class Spellcorrector(object):
         
 
     def train(self, words):
-        if not isinstance(words, (tuple, list)):
+        if not hasattr(words, '__iter__'):
             words = [words]
-            
+
         self._train(words)
         
     def untrain(self, words):
-        if not isinstance(words, (tuple, list)):
+        if not hasattr(words, '__iter__'):
             words = [words]
             
         self._untrain(words)
         
     def _untrain(self, words):
         for word in words:
-            word = unicode(word)
-            
+            word = unicode(word).lower()
+
             if word in self.nwords:
                 count = self.nwords.pop(word)
                 if count > 1:
