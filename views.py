@@ -5,19 +5,29 @@ def tokenize_text(text):
     # XXX improve this 
     return re.findall(u'[a-z\xe5\xe4\xf6]+', text.lower())
 
+STOPWORDS = {}
+################################################################################
+STOPWORDS['en'] = \
+  tuple(u'a and are as at be but by for if in into is it no not of on or such '\
+        u'that the their then there these they this to was will with'.split())
+
+# from postgresql/8.3/tsearch_data/swedish.stop 
+STOPWORDS['sv'] = \
+  tuple(u'och det att i en jag hon som han p\xe5 den med var sig f\xf6r s\xe5 '\
+        u'till \xe4r men ett om hade de av icke mig du henne d\xe5 sin nu '\
+        u'har inte hans honom skulle hennes d\xe4r min man ej vid kunde '\
+        u'n\xe5got fr\xe5n ut n\xe4r efter upp vi dem vara vad \xf6ver \xe4n '\
+        u'dig kan sina h\xe4r ha mot alla under n\xe5gon eller allt mycket '\
+        u'sedan ju denna sj\xe4lv detta \xe5t utan varit hur ingen mitt ni '\
+        u'bli blev oss din dessa n\xe5gra deras blir mina samma vilken er '\
+        u's\xe5dan v\xe5r blivit dess inom mellan s\xe5dant varf\xf6r varje '\
+        u'vilka ditt vem vilket sitta s\xe5dana vart dina vars v\xe5rt '\
+        u'v\xe5ra ert era vilkas'.split())
+
+
 
 def remove_stopwords(word_sequence, language='en'):
-    stopwords = \
-    (
-     "a", "and", "are", "as", "at", "be", "but", "by",
-     "for", "if", "in", "into", "is", "it",
-     "no", "not", "of", "on", "or", "such",
-     "that", "the", "their", "then", "there", "these",
-     "they", "this", "to", "was", "will", "with"
-    )
-    return [x for x in word_sequence if x.lower() not in stopwords]
-    
-
+    return [x for x in word_sequence if x.lower() not in STOPWORDS[language]]
 
 def incr_word(word, language='en'):
     try:
@@ -102,7 +112,7 @@ class Spellcorrector(object):
 
     def _candidates(self, word):
         word = word.lower()
-        if len(word) > 10:
+        if len(word) > 8:
             # if the word is this big, edits2() returns a HUUUUGE
             # set which kills the CPU and takes forever.
             return self.known([word]) | self.known(self._edits1(word)) or [word]
@@ -200,7 +210,12 @@ class Spellcorrector(object):
                     
 
     def correct(self, word):
-        candidates = self._candidates(word)
+    #    from time import time
+    #    t0=time()
+    #    r = self._correct(word)
+    #    t1=time()
+    #    return r
+    #def _correct(self, word):
         
         if word in self._trained_words:
             # this test is important because if you've trained a word, specifcally,
@@ -216,6 +231,8 @@ class Spellcorrector(object):
             # With this if statement, the word 'peter' which shares the max
             # score position won't be considered incorrect.
             return word
+        
+        candidates = self._candidates(word)
             
         if len(candidates) > 1:
             # take the one with the best score if it has 
@@ -232,6 +249,17 @@ class Spellcorrector(object):
             # candidates is a set so can't take the 0th element
             # so first turn it into a list
             return list(candidates)[0]
+        
+    def correct_text(self, text):
+        """split the text and correct each word in it"""
+        try:
+            stopwords = STOPWORDS[self.language]
+        except KeyError:
+            stopwords = ()
+        
+        return ' '.join([word not in stopwords and self.correct(word) or word 
+                         for word in text.split()])
+        
         
     def suggestions(self, word, detailed=False):
         candidates = self._candidates(word)

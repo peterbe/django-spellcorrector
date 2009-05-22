@@ -211,6 +211,20 @@ class SimpleTest(TestCase):
         self.assertEqual(sc.correct('bangt'), 'bang')
         
         
+    def test_spellcorrector_correct_text(self):
+        """test the Spellcorrector class without loading or saving
+        but use the correct_text() method instead"""
+        
+        sc = views.Spellcorrector()
+        
+        # train on normal words
+        sc.train('peter')
+        self.assertEqual(sc.correct('peter'), 'peter')
+        self.assertEqual(sc.correct('petter'), 'peter')
+        self.assertEqual(sc.correct_text('petter in the house'),
+                         'peter in the house')
+        
+        sc.train('petter')
 
         
 
