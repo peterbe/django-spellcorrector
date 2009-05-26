@@ -1,0 +1,2 @@
+About django-spellcorrect
+=========================
