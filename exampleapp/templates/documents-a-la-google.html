@@ -1,0 +1,39 @@
+<html>
+<head>
+<title>Documents (a la Google)</title>
+</head>
+<body>
+
+
+<h2>Documents (a la Google)</h2>
+
+<form action=".">
+<input name="q" value="{{ q }}" size="40" /> <input type="submit" value="Search"/>
+</form>
+
+{% if q %}
+<p>Found {{ documents.count }} documents
+
+  {% if correction %}
+  <a href="{% url documents_a_la_google %}?q={{ correction.query_string }}"
+    >Did you mean <strong>{{ correction.correction }}</strong>?</a>
+  {% endif %}
+</p>
+{% endif %}
+
+
+{% if documents %}
+<ol>
+{% for document in documents %}
+  <li>
+    <h4>{{ document.title }}</h4>
+    <p>{{ document.body }}</p>
+  </li>
+{% endfor %}
+</ol>
+{% else %}
+  <p>No documents yet</p>
+{% endif %}
+
+</body>
+</html>

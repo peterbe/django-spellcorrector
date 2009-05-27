@@ -1,0 +1,37 @@
+<html>
+<head>
+<title>Documents</title>
+</head>
+<body>
+
+
+<h2>Documents</h2>
+
+<form action=".">
+<input name="q" value="{{ q }}" size="40" /> <input type="submit" value="Search"/>
+</form>
+
+{% if q %}
+<p>Found {{ documents.count }}
+  {% ifnotequal q q_corrected %}
+  assuming you meant <strong>{{ q_corrected }}</strong>
+  {% endifnotequal %}
+</p>
+{% endif %}
+
+
+{% if documents %}
+<ol>
+{% for document in documents %}
+  <li>
+    <h4>{{ document.title }}</h4>
+    <p>{{ document.body }}</p>
+  </li>
+{% endfor %}
+</ol>
+{% else %}
+  <p>No documents yet</p>
+{% endif %}
+
+</body>
+</html>
