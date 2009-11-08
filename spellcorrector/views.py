@@ -77,6 +77,9 @@ class Spellcorrector(object):
         # by default we assume that we haven't loaded a list of stored words
         self._loaded = False
         
+    def is_loaded(self):
+        return self._loaded
+        
     def reset(self):
         self._loaded = False
         self.nwords = {}
@@ -134,7 +137,7 @@ class Spellcorrector(object):
             # (e.g. -1) so that's why we use this max() function here so that
             # the previous (that we +1 to) never is -1)
 
-            if self._loaded:
+            if self.is_loaded():
                 # since there are other word already in there like this, make sure
                 # our trained word gets higher no matter what.
                 p = max(self.nwords.get(self.correct(word), 0), 0) + 1
